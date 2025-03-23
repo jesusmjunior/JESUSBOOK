@@ -1,7 +1,5 @@
 import streamlit as st
 import requests
-import json
-import re
 
 # -------------------- CONFIGURAÇÕES --------------------
 st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
@@ -10,16 +8,15 @@ st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
 trusted_sources = [
     "archive.org", "bibliotecadigital.tse.jus.br", "books.scielo.org", "dominiopublico.gov.br", "capes.gov.br",
     "bdtd.ibict.br", "repositorio.unesp.br", "repositorio.ufsc.br", "repositorio.unb.br", "repositorio.ufmg.br",
-    "www.scielo.org", "www.periodicos.capes.gov.br", "www.scholar.google.com.br", "www.redalyc.org", "www.bdtd.ibict.br",
-    "www.doaj.org", "www.pubmed.ncbi.nlm.nih.gov", "www.eric.ed.gov", "www.lilacs.bvsalud.org", "www.scifinder.cas.org",
-    "www.scopus.com", "www.webofscience.com", "www.jstor.org", "www.sciencedirect.com", "www.link.springer.com",
-    "www.ieeexplore.ieee.org", "www.apa.org", "www.embase.com", "www.openalex.org", "www.openedition.org", "www.latindex.org",
-    "www.oaister.worldcat.org", "www.base-search.net", "www.v2.sherpa.ac.uk", "www.openaire.eu", "www.ncbi.nlm.nih.gov",
-    "www.arxiv.org"
+    "www.scielo.org", "www.periodicos.capes.gov.br", "www.scholar.google.com.br", "www.redalyc.org", "www.doaj.org",
+    "www.pubmed.ncbi.nlm.nih.gov", "www.eric.ed.gov", "www.lilacs.bvsalud.org", "www.scifinder.cas.org", "www.scopus.com",
+    "www.webofscience.com", "www.jstor.org", "www.sciencedirect.com", "www.link.springer.com", "www.ieeexplore.ieee.org",
+    "www.apa.org", "www.embase.com", "www.openalex.org", "www.openedition.org", "www.latindex.org", "www.oaister.worldcat.org",
+    "www.base-search.net", "www.v2.sherpa.ac.uk", "www.openaire.eu", "www.ncbi.nlm.nih.gov", "www.arxiv.org"
 ]
 
-GOOGLE_API_KEY = "AIzaSyAKibc0A3TerDdfQeZBLePxU01PbK_53Lw"
-CX = "706995a2060d64dcc"
+GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY"
+CX = "YOUR_CUSTOM_SEARCH_CX"
 
 API_SOURCES = {
     "archive": "https://archive.org/advancedsearch.php?q={query}+AND+mediatype%3Atexts&fl[]=identifier,title,description,creator,year,mediatype,format&output=json&rows=10&page=1"
@@ -87,7 +84,6 @@ h1 {
   <div class="robot-label">🤖 Jesus I.A.</div>
 </div>
 """
-
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # -------------------- CABEÇALHO --------------------
