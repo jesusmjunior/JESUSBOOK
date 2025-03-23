@@ -84,13 +84,13 @@ st.markdown("# JJBOOK 📚🤖")
 st.write("🔎 Pesquise livros acadêmicos completos abaixo:")
 
 # -------------------- MOTOR LÓGICO ALFA/BETA/GAMA --------------------
+@st.cache_data(show_spinner=False)
 def advanced_logic(result, query):
     score = 0
     title = result.get("title", "").lower()
     desc = result.get("description", "").lower()
     year = result.get("year", "")
 
-    # Dicionário lógico Alfa, Beta, Gama
     key_terms = {"alfa": ["tese", "dissertação"], "beta": ["monografia", "livro"], "gama": ["artigo", "acadêmico", "científico", "llm", "python"]}
 
     for level, terms in key_terms.items():
@@ -113,6 +113,7 @@ def advanced_logic(result, query):
     return score >= 5
 
 # -------------------- BUSCA NO ARCHIVE --------------------
+@st.cache_data(show_spinner=False)
 def search_archive(query):
     url = API_SOURCES["archive"].format(query=query)
     resp = requests.get(url)
@@ -138,12 +139,32 @@ def search_archive(query):
 
 # -------------------- UPLOAD DE BIBLIOTECA LOCAL --------------------
 st.sidebar.subheader("📂 Upload de Biblioteca Local")
-uploaded_file = st.sidebar.file_uploader("Carregar metadados (JSON)", type=['json'])
+
 local_results = []
-if uploaded_file:
-    st.sidebar.success("Arquivo carregado com sucesso!")
-    data = json.load(uploaded_file)
-    for entry in data:
+if 'uploaded_data' not in st.session_state:
+    st.session_state.uploaded_data = []
+
+uploaded_file = st.sidebar.file_uploader("Carregar metadados (JSON ou CSV)", type=['json', 'csv'])
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith('.json'):
+            data = json.load(uploaded_file)
+            st.session_state.uploaded_data = data
+        else:
+            import csv
+            csv_data = []
+            csv_reader = csv.DictReader(uploaded_file.read().decode("utf-8").splitlines())
+            for row in csv_reader:
+                csv_data.append(row)
+            st.session_state.uploaded_data = csv_data
+
+        st.sidebar.success("Arquivo carregado com sucesso!")
+    except Exception as e:
+        st.sidebar.error("Erro ao carregar arquivo: " + str(e))
+
+if st.session_state.uploaded_data:
+    for entry in st.session_state.uploaded_data:
         if advanced_logic(entry, ""):
             local_results.append(entry)
 
