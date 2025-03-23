@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import re
 
 # -------------------- CONFIGURAÇÕES --------------------
 st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
@@ -81,10 +82,18 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # -------------------- CABEÇALHO --------------------
 st.markdown("# JJBOOK 📚🤖")
 
-st.write("🔎 Pesquise livros acadêmicos completos abaixo:")
+st.write("🔎 Cole abaixo um trecho do texto que deseja rastrear e encontrar materiais relacionados:")
 
-# -------------------- MOTOR LÓGICO ALFA/BETA/GAMA --------------------
-@st.cache_data(show_spinner=False)
+# -------------------- PARSER LÓGICO SIMPLES --------------------
+def parse_query(query):
+    weights = {"tese": 3, "dissertação": 3, "monografia": 2, "livro": 2, "artigo": 2, "acadêmico": 1, "científico": 1, "python": 2, "llm": 2, "direito": 2, "constitucional": 2, "lei": 2}
+    parsed = {}
+    for key, weight in weights.items():
+        if re.search(rf"\b{key}\b", query.lower()):
+            parsed[key] = weight
+    return parsed
+
+# -------------------- MOTOR LÓGICO ALFA/BETA/GAMA + SEMÂNTICA --------------------
 def advanced_logic(result, query):
     score = 0
     title = result.get("title", "").lower()
@@ -92,14 +101,16 @@ def advanced_logic(result, query):
     year = result.get("year", "")
 
     key_terms = {"alfa": ["tese", "dissertação"], "beta": ["monografia", "livro"], "gama": ["artigo", "acadêmico", "científico", "llm", "python"]}
+    query_terms = parse_query(query)
 
     for level, terms in key_terms.items():
         for term in terms:
-            if term in title or term in desc:
+            if term in title or term in desc or term in query_terms:
                 score += {"alfa": 3, "beta": 2, "gama": 1}[level]
 
-    if query.lower() in title or query.lower() in desc:
-        score += 2
+    for term, weight in query_terms.items():
+        if term in title or term in desc:
+            score += weight
 
     if len(desc) > 100:
         score += 1
@@ -113,7 +124,6 @@ def advanced_logic(result, query):
     return score >= 5
 
 # -------------------- BUSCA NO ARCHIVE --------------------
-@st.cache_data(show_spinner=False)
 def search_archive(query):
     url = API_SOURCES["archive"].format(query=query)
     resp = requests.get(url)
@@ -137,62 +147,34 @@ def search_archive(query):
                 results.append(result_data)
     return results
 
-# -------------------- UPLOAD DE BIBLIOTECA LOCAL --------------------
-st.sidebar.subheader("📂 Upload de Biblioteca Local")
+# -------------------- INPUT DE TEXTO PARA RASTREAMENTO --------------------
+query = st.text_area("Cole aqui o trecho ou tema para rastreamento:", "")
 
-local_results = []
-if 'uploaded_data' not in st.session_state:
-    st.session_state.uploaded_data = []
-
-uploaded_file = st.sidebar.file_uploader("Carregar metadados (JSON ou CSV)", type=['json', 'csv'])
-
-if uploaded_file is not None:
-    try:
-        if uploaded_file.name.endswith('.json'):
-            data = json.load(uploaded_file)
-            st.session_state.uploaded_data = data
-        else:
-            import csv
-            csv_data = []
-            csv_reader = csv.DictReader(uploaded_file.read().decode("utf-8").splitlines())
-            for row in csv_reader:
-                csv_data.append(row)
-            st.session_state.uploaded_data = csv_data
-
-        st.sidebar.success("Arquivo carregado com sucesso!")
-    except Exception as e:
-        st.sidebar.error("Erro ao carregar arquivo: " + str(e))
-
-if st.session_state.uploaded_data:
-    for entry in st.session_state.uploaded_data:
-        if advanced_logic(entry, ""):
-            local_results.append(entry)
-
-# -------------------- INTERFACE --------------------
-query = st.text_input("Digite a palavra-chave:", "")
-
+# -------------------- RESULTADOS --------------------
 if query:
-    st.info("⏳ Buscando resultados relevantes com refinamento...")
+    st.info("⏳ Buscando resultados refinados com lógica avançada...")
 
     archive_results = search_archive(query)
 
-    if not archive_results and not local_results:
+    if not archive_results:
         st.warning("Nenhum resultado acadêmico encontrado.")
     else:
-        st.subheader("📚 Resultados refinados e relevantes:")
-        combined_results = archive_results + local_results
+        st.subheader("📚 Resultados relevantes e refinados:")
         cols = st.columns(2)
 
-        for idx, result in enumerate(combined_results[:5]):
+        for idx, result in enumerate(archive_results[:5]):
+            bullets = [
+                f"📕 **Título:** {result['title']}",
+                f"👤 **Autor:** {result.get('author', 'Desconhecido')}",
+                f"📅 **Ano:** {result.get('year', 'N/A')}",
+                f"📄 [Baixar PDF]({result['link']})",
+                f"✨ {result['description'][:150]}..."
+            ]
             with cols[idx % 2]:
                 st.markdown(f"<div class='card'>", unsafe_allow_html=True)
                 st.image(result.get("image", "https://via.placeholder.com/150"), width=150)
-                st.markdown(f"<div class='card-title'>📘 {result['title']}</div>", unsafe_allow_html=True)
-                st.markdown(f"👤 Autor: {result.get('author', 'Desconhecido')}")
-                st.markdown(f"📅 Ano: {result.get('year', 'N/A')}")
-                st.markdown(f"<div class='card-description'>📝 {result['description']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<a class='download-link' href='{result['link']}' target='_blank'>📄 Download PDF</a>", unsafe_allow_html=True)
+                st.markdown("\n".join(bullets))
                 st.markdown(f"</div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("Desenvolvido por JJ I.A.")
+    st.markdown("Desenvolvido por JJ I.A. 🤖")
