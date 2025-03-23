@@ -2,9 +2,17 @@ import streamlit as st
 import requests
 import json
 import re
+import csv
 
 # -------------------- CONFIGURAÇÕES --------------------
 st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
+
+# Importa bases confiáveis do arquivo CSV enviado
+trusted_sources = []
+with open("Bases_Acad_micas_P_blicas.csv", newline='', encoding='utf-8') as csvfile:
+    reader = csv.reader(csvfile)
+    for row in reader:
+        trusted_sources.append(row[0])
 
 API_SOURCES = {
     "archive": "https://archive.org/advancedsearch.php?q={query}+AND+mediatype%3Atexts&fl[]=identifier,title,description,creator,year,mediatype,format&output=json&rows=10&page=1"
@@ -72,34 +80,29 @@ st.markdown(custom_css, unsafe_allow_html=True)
 
 # -------------------- CABEÇALHO --------------------
 st.markdown("# JJBOOK 📚🤖")
-st.write("🔎 Cole abaixo um trecho ou tema para rastrear materiais por tipo, assunto e preferências.")
+st.write("🔎 Preencha os campos abaixo para rastrear materiais por tipo, assunto e preferências.")
+
+# -------------------- INPUTS SEPARADOS --------------------
+with st.form("search_form"):
+    target = st.text_input("🎯 Defina seu tema ou target principal:")
+    doc_type = st.multiselect("📄 Tipo de Documento:", ["Tese", "Dissertação", "Monografia", "Livro", "Artigo"], default=["Tese", "Artigo"])
+    year_range = st.slider("📅 Ano de publicação:", 2005, 2025, (2015, 2025))
+    submitted = st.form_submit_button("🔍 Buscar")
 
 # -------------------- FUNÇÃO DE PARSER --------------------
-def parse_query(query):
+def parse_query(target, doc_type, year_range):
     key_info = {
-        "document_type": [],
+        "document_type": [x.lower() for x in doc_type],
         "subject": [],
-        "year_start": 2010,
-        "year_end": 2025
+        "year_start": year_range[0],
+        "year_end": year_range[1]
     }
-    document_types = ["tese", "dissertação", "monografia", "livro", "artigo"]
-    subjects = ["direito", "constitucional", "lei", "python", "llm", "robô"]
+    subjects = ["direito", "constitucional", "lei", "python", "llm", "robô", "chatbot"]
 
-    for word in query.lower().split():
-        if word in document_types:
-            key_info["document_type"].append(word)
-        elif word in subjects:
+    for word in target.lower().split():
+        if word in subjects:
             key_info["subject"].append(word)
-        elif re.match(r"\d{4}", word):
-            year = int(word)
-            if 1900 < year < 2025:
-                if key_info["year_start"] == 2010:
-                    key_info["year_start"] = year
-                else:
-                    key_info["year_end"] = year
 
-    if not key_info["document_type"]:
-        key_info["document_type"] = ["livro", "tese", "artigo"]
     if not key_info["subject"]:
         key_info["subject"] = ["acadêmico", "científico"]
 
@@ -131,7 +134,7 @@ def advanced_logic(result, query_info):
 
     return score >= 5
 
-# -------------------- BUSCA NO ARCHIVE --------------------
+# -------------------- BUSCA NO ARCHIVE + BASES CONFIÁVEIS --------------------
 def search_archive(query, parsed_query):
     url = API_SOURCES["archive"].format(query=query)
     resp = requests.get(url)
@@ -143,31 +146,30 @@ def search_archive(query, parsed_query):
             desc = doc.get("description", "") or "Livro disponível no Archive.org"
             author = doc.get("creator", "Autor desconhecido")
             year = doc.get("year", "Ano não informado")
-            result_data = {
-                "title": title,
-                "description": desc,
-                "author": author,
-                "year": year,
-                "link": f"https://archive.org/details/{doc.get('identifier')}",
-                "image": "https://archive.org/services/img/" + doc.get("identifier", "")
-            }
-            if advanced_logic(result_data, parsed_query):
-                results.append(result_data)
+            source = doc.get("identifier", "")
+            
+            # Apenas incluir se for base confiável
+            if any(base in source for base in trusted_sources):
+                result_data = {
+                    "title": title,
+                    "description": desc,
+                    "author": author,
+                    "year": year,
+                    "link": f"https://archive.org/details/{source}",
+                    "image": "https://archive.org/services/img/" + source
+                }
+                if advanced_logic(result_data, parsed_query):
+                    results.append(result_data)
     return results
 
-# -------------------- INPUT DE TEXTO --------------------
-with st.form("search_form"):
-    query = st.text_area("✏️ Cole seu tema ou trecho para rastrear informações:", "", height=100)
-    submitted = st.form_submit_button("🔍 Buscar")
-
 # -------------------- RESULTADOS --------------------
-if submitted and query:
-    st.info("⏳ Buscando e aplicando lógica fuzzy...")
-    parsed_query = parse_query(query)
-    archive_results = search_archive(query, parsed_query)
+if submitted and target:
+    st.info("⏳ Buscando resultados com lógica refinada...")
+    parsed_query = parse_query(target, doc_type, year_range)
+    archive_results = search_archive(target, parsed_query)
 
     if not archive_results:
-        st.warning("Nenhum resultado encontrado. Tente modificar ou ampliar seu texto.")
+        st.warning("Nenhum resultado encontrado. Tente redefinir as palavras-chave.")
     else:
         st.subheader("📚 Resultados organizados:")
         cols = st.columns(2)
@@ -176,9 +178,9 @@ if submitted and query:
             bullets = [
                 f"📕 **Título:** {result['title']}",
                 f"👤 **Autor:** {result.get('author', 'Desconhecido')}",
-                f"📅 **Ano:** {result.get('year', 'N/A')}",
+                f"🏫 **Publicação:** {result.get('year', 'N/A')}",
                 f"📄 [Baixar PDF]({result['link']})",
-                f"🌐 [Acessar Site Original]({result['link']})",
+                f"🌐 [Site Original]({result['link']})",
                 f"✨ {result['description'][:150]}..."
             ]
             with cols[idx % 2]:
@@ -190,5 +192,5 @@ if submitted and query:
     st.markdown("---")
     st.markdown("Desenvolvido por JJ I.A. 🤖")
 
-# -------------------- LIMPA CACHE (Simples) --------------------
+# -------------------- LIMPA CACHE --------------------
 st.cache_data.clear()
