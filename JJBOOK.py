@@ -2,17 +2,50 @@ import streamlit as st
 import requests
 import json
 import re
-import csv
 
 # -------------------- CONFIGURAÇÕES --------------------
 st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
 
-# Importa bases confiáveis do arquivo CSV enviado
-trusted_sources = []
-with open("Bases_Acad_micas_P_blicas.csv", newline='', encoding='utf-8') as csvfile:
-    reader = csv.reader(csvfile)
-    for row in reader:
-        trusted_sources.append(row[0])
+# Lista de bases confiáveis diretamente no código
+trusted_sources = [
+    "archive.org",
+    "bibliotecadigital.tse.jus.br",
+    "books.scielo.org",
+    "dominiopublico.gov.br",
+    "capes.gov.br",
+    "bdtd.ibict.br",
+    "repositorio.unesp.br",
+    "repositorio.ufsc.br",
+    "repositorio.unb.br",
+    "repositorio.ufmg.br",
+    "www.scielo.org",
+    "www.periodicos.capes.gov.br",
+    "www.scholar.google.com.br",
+    "www.redalyc.org",
+    "www.bdtd.ibict.br",
+    "www.doaj.org",
+    "www.pubmed.ncbi.nlm.nih.gov",
+    "www.eric.ed.gov",
+    "www.lilacs.bvsalud.org",
+    "www.scifinder.cas.org",
+    "www.scopus.com",
+    "www.webofscience.com",
+    "www.jstor.org",
+    "www.sciencedirect.com",
+    "www.link.springer.com",
+    "www.ieeexplore.ieee.org",
+    "www.apa.org",
+    "www.embase.com",
+    "www.openalex.org",
+    "www.openedition.org",
+    "www.latindex.org",
+    "www.oaister.worldcat.org",
+    "www.base-search.net",
+    "www.v2.sherpa.ac.uk",
+    "www.openaire.eu",
+    "www.ncbi.nlm.nih.gov",
+    "www.arxiv.org"
+]
 
 API_SOURCES = {
     "archive": "https://archive.org/advancedsearch.php?q={query}+AND+mediatype%3Atexts&fl[]=identifier,title,description,creator,year,mediatype,format&output=json&rows=10&page=1"
