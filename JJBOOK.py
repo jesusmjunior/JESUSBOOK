@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import json
 
 # -------------------- CONFIGURAÇÕES --------------------
 st.set_page_config(page_title="JJBOOK 📚🤖", layout="wide")
@@ -82,18 +83,34 @@ st.markdown("# JJBOOK 📚🤖")
 
 st.write("🔎 Pesquise livros acadêmicos completos abaixo:")
 
-# -------------------- LÓGICA DE REFINAMENTO --------------------
-def logic_engine(result):
+# -------------------- MOTOR LÓGICO ALFA/BETA/GAMA --------------------
+def advanced_logic(result, query):
     score = 0
     title = result.get("title", "").lower()
     desc = result.get("description", "").lower()
-    if any(term in title for term in ["tese", "dissertação", "monografia", "livro", "acadêmico", "científico"]):
+    year = result.get("year", "")
+
+    # Dicionário lógico Alfa, Beta, Gama
+    key_terms = {"alfa": ["tese", "dissertação"], "beta": ["monografia", "livro"], "gama": ["artigo", "acadêmico", "científico", "llm", "python"]}
+
+    for level, terms in key_terms.items():
+        for term in terms:
+            if term in title or term in desc:
+                score += {"alfa": 3, "beta": 2, "gama": 1}[level]
+
+    if query.lower() in title or query.lower() in desc:
         score += 2
-    if "pdf" in desc:
-        score += 1
+
     if len(desc) > 100:
         score += 1
-    return score >= 2  # Ajuste de critério para exibir ou não
+
+    try:
+        if int(year) >= 2018:
+            score += 2
+    except:
+        pass
+
+    return score >= 5
 
 # -------------------- BUSCA NO ARCHIVE --------------------
 def search_archive(query):
@@ -115,9 +132,20 @@ def search_archive(query):
                 "link": f"https://archive.org/details/{doc.get('identifier')}",
                 "image": "https://archive.org/services/img/" + doc.get("identifier", "")
             }
-            if logic_engine(result_data):
+            if advanced_logic(result_data, query):
                 results.append(result_data)
     return results
+
+# -------------------- UPLOAD DE BIBLIOTECA LOCAL --------------------
+st.sidebar.subheader("📂 Upload de Biblioteca Local")
+uploaded_file = st.sidebar.file_uploader("Carregar metadados (JSON)", type=['json'])
+local_results = []
+if uploaded_file:
+    st.sidebar.success("Arquivo carregado com sucesso!")
+    data = json.load(uploaded_file)
+    for entry in data:
+        if advanced_logic(entry, ""):
+            local_results.append(entry)
 
 # -------------------- INTERFACE --------------------
 query = st.text_input("Digite a palavra-chave:", "")
@@ -127,19 +155,20 @@ if query:
 
     archive_results = search_archive(query)
 
-    if not archive_results:
+    if not archive_results and not local_results:
         st.warning("Nenhum resultado acadêmico encontrado.")
     else:
         st.subheader("📚 Resultados refinados e relevantes:")
+        combined_results = archive_results + local_results
         cols = st.columns(2)
 
-        for idx, result in enumerate(archive_results[:5]):
+        for idx, result in enumerate(combined_results[:5]):
             with cols[idx % 2]:
                 st.markdown(f"<div class='card'>", unsafe_allow_html=True)
-                st.image(result["image"], width=150)
+                st.image(result.get("image", "https://via.placeholder.com/150"), width=150)
                 st.markdown(f"<div class='card-title'>📘 {result['title']}</div>", unsafe_allow_html=True)
-                st.markdown(f"👤 Autor: {result['author']}")
-                st.markdown(f"📅 Ano: {result['year']}")
+                st.markdown(f"👤 Autor: {result.get('author', 'Desconhecido')}")
+                st.markdown(f"📅 Ano: {result.get('year', 'N/A')}")
                 st.markdown(f"<div class='card-description'>📝 {result['description']}</div>", unsafe_allow_html=True)
                 st.markdown(f"<a class='download-link' href='{result['link']}' target='_blank'>📄 Download PDF</a>", unsafe_allow_html=True)
                 st.markdown(f"</div>", unsafe_allow_html=True)
